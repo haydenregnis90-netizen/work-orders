@@ -285,6 +285,7 @@ input[readonly] { background: #f9fafb; cursor: not-allowed; }
 <header class="app-header">
   <h1>⚡ Work Order Generator</h1>
   <div class="header-btns">
+    <button class="btn btn-outline" onclick="openHistory()">📋 History</button>
     <button class="btn btn-outline" onclick="openSettings()">⚙ Settings</button>
   </div>
 </header>
@@ -426,7 +427,7 @@ input[readonly] { background: #f9fafb; cursor: not-allowed; }
           </div>
           <div class="form-group">
             <label>Project Manager (P.M.)</label>
-            <input type="text" id="f_pm" placeholder="e.g. Caitlin Burns">
+            <input type="text" id="f_pm" placeholder="Project manager name" list="dl_pms">
           </div>
         </div>
       </div>
@@ -437,7 +438,7 @@ input[readonly] { background: #f9fafb; cursor: not-allowed; }
         <div class="form-grid">
           <div class="form-group">
             <label>Company Name</label>
-            <input type="text" id="f_subName" placeholder="e.g. Summit Air &amp; Refrigeration">
+            <input type="text" id="f_subName" placeholder="Subcontractor company name" list="dl_subs" oninput="onSubInput(this.value);clearErr(this)">
           </div>
           <div class="form-group">
             <label>State</label>
@@ -450,7 +451,7 @@ input[readonly] { background: #f9fafb; cursor: not-allowed; }
           </div>
           <div class="form-group full">
             <label>Subcontractor Email <span style="font-weight:400;color:#9ca3af;">(used for generated email)</span></label>
-            <input type="email" id="f_subEmail" placeholder="e.g. admin@summitair.com.au">
+            <input type="email" id="f_subEmail" placeholder="Subcontractor email address">
           </div>
         </div>
       </div>
@@ -461,19 +462,19 @@ input[readonly] { background: #f9fafb; cursor: not-allowed; }
         <div class="form-grid">
           <div class="form-group">
             <label>Site Name</label>
-            <input type="text" id="f_siteName" placeholder="e.g. El Jannah Tuggerah">
+            <input type="text" id="f_siteName" placeholder="Site name" list="dl_sites" oninput="onSiteInput(this.value);clearErr(this)">
           </div>
           <div class="form-group">
             <label>Site Contact</label>
-            <input type="text" id="f_siteContact" placeholder="Contact person name">
+            <input type="text" id="f_siteContact" placeholder="Contact person name" list="dl_contacts">
           </div>
           <div class="form-group full">
             <label>Site Address</label>
-            <input type="text" id="f_siteAddr" placeholder="e.g. Pacific Centre Tuggerah, 144-148 Pacific Hwy, Tuggerah NSW 2259">
+            <input type="text" id="f_siteAddr" placeholder="Full site address" oninput="clearErr(this)">
           </div>
           <div class="form-group">
             <label>Site Phone</label>
-            <input type="text" id="f_sitePhone" placeholder="e.g. (02) 4399 0000">
+            <input type="text" id="f_sitePhone" placeholder="Site phone number">
           </div>
         </div>
       </div>
@@ -505,11 +506,11 @@ input[readonly] { background: #f9fafb; cursor: not-allowed; }
           </div>
           <div class="form-group full" id="customCallGroup" style="display:none;">
             <label>Custom Call Type Description</label>
-            <input type="text" id="f_customCall" placeholder="Describe the type of call-out…">
+            <input type="text" id="f_customCall" placeholder="Describe the type of call-out">
           </div>
           <div class="form-group full">
             <label>Description of Work</label>
-            <textarea id="f_desc" placeholder="e.g. Investigate AC not working — unit tripping on high pressure, all zones affected."></textarea>
+            <textarea id="f_desc" placeholder="Describe the work required" oninput="clearErr(this)"></textarea>
           </div>
           <div class="form-group full">
             <label>Additional Notes <span style="font-weight:400; color:#9ca3af;">(optional)</span></label>
@@ -564,10 +565,55 @@ input[readonly] { background: #f9fafb; cursor: not-allowed; }
     <button class="btn btn-primary" onclick="downloadPDF()">⬇ Download PDF</button>
     <button class="btn" style="background:#555;color:white;" onclick="window.print()">🖨 Print</button>
     <button class="btn" style="background:#7c3aed;color:white;" onclick="openEmailModal()">✉ Generate Email</button>
+    <button class="btn" style="background:#7c3aed;color:white;" onclick="useAsTemplate()">📋 Use as Template</button>
     <button class="btn btn-success" onclick="newWO()">+ New Work Order</button>
   </div>
   <div class="wo-doc-wrap">
     <div id="wo-document"><!-- generated --></div>
+  </div>
+</div>
+
+<!-- ████ DATALISTS (autocomplete sources) ████ -->
+<datalist id="dl_pms"></datalist>
+<datalist id="dl_subs"></datalist>
+<datalist id="dl_sites"></datalist>
+<datalist id="dl_contacts"></datalist>
+
+<!-- ████ HISTORY PANEL ████ -->
+<div class="settings-overlay" id="historyOverlay" onclick="bgClickHistory(event)">
+  <div class="settings-panel" style="width:720px;">
+    <div class="settings-header">
+      <h2>📋 Work Order History</h2>
+      <button class="close-btn" onclick="closeHistory()">✕</button>
+    </div>
+    <div class="settings-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <span style="font-size:13px;color:#6b7280;">Last 50 generated work orders</span>
+        <button class="btn btn-danger" onclick="clearHistory()" style="font-size:12px;padding:5px 12px;">🗑 Clear History</button>
+      </div>
+      <div id="historyTableWrap" style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f4f7ff;border-bottom:2px solid #e2e8f0;">
+              <th style="padding:8px 10px;text-align:left;color:#1a3a5c;white-space:nowrap;">WO #</th>
+              <th style="padding:8px 10px;text-align:left;color:#1a3a5c;">Date</th>
+              <th style="padding:8px 10px;text-align:left;color:#1a3a5c;">Subcontractor</th>
+              <th style="padding:8px 10px;text-align:left;color:#1a3a5c;">Site</th>
+              <th style="padding:8px 10px;text-align:left;color:#1a3a5c;">P.M.</th>
+              <th style="padding:8px 10px;text-align:right;color:#1a3a5c;">Total</th>
+              <th style="padding:8px 10px;text-align:center;color:#1a3a5c;"></th>
+            </tr>
+          </thead>
+          <tbody id="historyTbody"></tbody>
+        </table>
+        <div id="historyEmpty" style="text-align:center;padding:32px;color:#9ca3af;font-size:13px;display:none;">No work orders generated yet.</div>
+      </div>
+
+      <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;">
+        <h3 style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#6b7280;margin-bottom:12px;font-weight:700;">Saved Subcontractors</h3>
+        <div id="savedSubsWrap"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -595,7 +641,7 @@ input[readonly] { background: #f9fafb; cursor: not-allowed; }
     <div class="email-modal-footer">
       <button class="btn btn-secondary" onclick="closeEmailModal()">Close</button>
       <button class="btn" style="background:#374151;color:white;" onclick="copyEmailBody()">📋 Copy Body</button>
-      <button class="btn btn-primary" onclick="openMailto()">📨 Open in Email Client</button>
+      <button class="btn btn-primary" onclick="openOutlook()">📨 Download PDF &amp; Open Outlook</button>
     </div>
   </div>
 </div>
@@ -612,20 +658,194 @@ let S = {
   sigName: '', sigPhone: '', sigEmail: ''
 };
 
+// Auto-complete data
+let A = { subs: [], sites: [], pms: [], contacts: [] };
+// History log
+let H = [];
+
 // ═══════════════════════════════════════
 //  BOOT
 // ═══════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
   loadSettings();
+  loadAutoData();
+  loadHistory();
   initDate();
   calcPricing();
   updateBadge();
-  // if company name already set, hide banner
+  updateDatalists();
   if (S.name) {
     const b = document.getElementById('setupBanner');
     if (b) b.remove();
   }
 });
+
+// ═══════════════════════════════════════
+//  AUTOCOMPLETE
+// ═══════════════════════════════════════
+function loadAutoData() {
+  try {
+    const d = localStorage.getItem('hvac_wo_auto');
+    if (d) A = { ...A, ...JSON.parse(d) };
+  } catch(e) {}
+}
+function persistAutoData() {
+  try { localStorage.setItem('hvac_wo_auto', JSON.stringify(A)); } catch(e) {}
+}
+function updateDatalists() {
+  document.getElementById('dl_pms').innerHTML      = A.pms.map(v=>`<option value="${h(v)}">`).join('');
+  document.getElementById('dl_subs').innerHTML     = A.subs.map(s=>`<option value="${h(s.name)}">`).join('');
+  document.getElementById('dl_sites').innerHTML    = A.sites.map(s=>`<option value="${h(s.name)}">`).join('');
+  document.getElementById('dl_contacts').innerHTML = A.contacts.map(v=>`<option value="${h(v)}">`).join('');
+}
+function onSubInput(val) {
+  const m = A.subs.find(s => s.name.toLowerCase() === val.toLowerCase());
+  if (m) {
+    if (m.email) document.getElementById('f_subEmail').value = m.email;
+    if (m.state) document.getElementById('f_subState').value = m.state;
+  }
+}
+function onSiteInput(val) {
+  const m = A.sites.find(s => s.name.toLowerCase() === val.toLowerCase());
+  if (m) {
+    if (m.address) document.getElementById('f_siteAddr').value    = m.address;
+    if (m.contact) document.getElementById('f_siteContact').value = m.contact;
+    if (m.phone)   document.getElementById('f_sitePhone').value   = m.phone;
+  }
+}
+function saveAutoEntry() {
+  const subName  = document.getElementById('f_subName').value.trim();
+  const subEmail = document.getElementById('f_subEmail').value.trim();
+  const subState = document.getElementById('f_subState').value;
+  const siteName = document.getElementById('f_siteName').value.trim();
+  const siteAddr = document.getElementById('f_siteAddr').value.trim();
+  const siteContact = document.getElementById('f_siteContact').value.trim();
+  const sitePhone   = document.getElementById('f_sitePhone').value.trim();
+  const pm = document.getElementById('f_pm').value.trim();
+
+  if (subName) {
+    const idx = A.subs.findIndex(s => s.name.toLowerCase() === subName.toLowerCase());
+    const entry = { name: subName, email: subEmail, state: subState };
+    if (idx >= 0) A.subs[idx] = entry; else A.subs.unshift(entry);
+    A.subs = A.subs.slice(0, 30);
+  }
+  if (siteName) {
+    const idx = A.sites.findIndex(s => s.name.toLowerCase() === siteName.toLowerCase());
+    const entry = { name: siteName, address: siteAddr, contact: siteContact, phone: sitePhone };
+    if (idx >= 0) A.sites[idx] = entry; else A.sites.unshift(entry);
+    A.sites = A.sites.slice(0, 30);
+  }
+  if (pm && !A.pms.includes(pm)) { A.pms.unshift(pm); A.pms = A.pms.slice(0, 15); }
+  if (siteContact && !A.contacts.includes(siteContact)) { A.contacts.unshift(siteContact); A.contacts = A.contacts.slice(0, 30); }
+
+  persistAutoData();
+  updateDatalists();
+}
+
+// ═══════════════════════════════════════
+//  HISTORY
+// ═══════════════════════════════════════
+function loadHistory() {
+  try {
+    const d = localStorage.getItem('hvac_wo_history');
+    if (d) H = JSON.parse(d);
+  } catch(e) {}
+}
+function persistHistory() {
+  try { localStorage.setItem('hvac_wo_history', JSON.stringify(H)); } catch(e) {}
+}
+function saveHistoryEntry(data) {
+  H.unshift(data);
+  H = H.slice(0, 50);
+  persistHistory();
+}
+function openHistory() {
+  renderHistory();
+  renderSavedSubs();
+  document.getElementById('historyOverlay').classList.add('active');
+}
+function closeHistory() {
+  document.getElementById('historyOverlay').classList.remove('active');
+}
+function bgClickHistory(e) {
+  if (e.target === document.getElementById('historyOverlay')) closeHistory();
+}
+function renderHistory() {
+  const tbody = document.getElementById('historyTbody');
+  const empty = document.getElementById('historyEmpty');
+  if (!H.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = H.map((r,i) => `
+    <tr style="border-bottom:1px solid #f0f2f6;${i%2===0?'background:#fafbff':''}">
+      <td style="padding:8px 10px;font-weight:700;color:#1a3a5c;">#${r.woNum}</td>
+      <td style="padding:8px 10px;white-space:nowrap;">${r.date}</td>
+      <td style="padding:8px 10px;">${h(r.subName)}</td>
+      <td style="padding:8px 10px;">${h(r.siteName)}</td>
+      <td style="padding:8px 10px;">${h(r.pm)}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:600;">${r.total}</td>
+      <td style="padding:8px 10px;text-align:center;">
+        <button onclick="reloadFromHistory(${i})" style="font-size:11px;padding:3px 8px;background:#e8edf7;border:none;border-radius:4px;cursor:pointer;color:#1a3a5c;font-weight:600;">Load</button>
+      </td>
+    </tr>`).join('');
+}
+function renderSavedSubs() {
+  const wrap = document.getElementById('savedSubsWrap');
+  if (!A.subs.length) {
+    wrap.innerHTML = '<p style="font-size:13px;color:#9ca3af;">No saved subcontractors yet — they\'ll appear here after you generate your first work order.</p>';
+    return;
+  }
+  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead><tr style="background:#f4f7ff;border-bottom:2px solid #e2e8f0;">
+      <th style="padding:7px 10px;text-align:left;color:#1a3a5c;">Company</th>
+      <th style="padding:7px 10px;text-align:left;color:#1a3a5c;">Email</th>
+      <th style="padding:7px 10px;text-align:left;color:#1a3a5c;">State</th>
+      <th style="padding:7px 10px;"></th>
+    </tr></thead>
+    <tbody>${A.subs.map((s,i)=>`
+      <tr style="border-bottom:1px solid #f0f2f6;">
+        <td style="padding:7px 10px;">${h(s.name)}</td>
+        <td style="padding:7px 10px;color:#6b7280;">${h(s.email)}</td>
+        <td style="padding:7px 10px;">${h(s.state)}</td>
+        <td style="padding:7px 10px;text-align:right;">
+          <button onclick="deleteSub(${i})" style="font-size:11px;padding:3px 8px;background:#fee2e2;border:none;border-radius:4px;cursor:pointer;color:#dc2626;font-weight:600;">Remove</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+function deleteSub(i) {
+  A.subs.splice(i, 1);
+  persistAutoData();
+  updateDatalists();
+  renderSavedSubs();
+}
+function clearHistory() {
+  if (!confirm('Clear all work order history? This cannot be undone.')) return;
+  H = [];
+  persistHistory();
+  renderHistory();
+}
+function reloadFromHistory(i) {
+  const r = H[i];
+  closeHistory();
+  document.getElementById('f_subName').value    = r.subName   || '';
+  document.getElementById('f_subEmail').value   = r.subEmail  || '';
+  document.getElementById('f_subState').value   = r.subState  || '';
+  document.getElementById('f_siteName').value   = r.siteName  || '';
+  document.getElementById('f_siteAddr').value   = r.siteAddr  || '';
+  document.getElementById('f_siteContact').value= r.siteContact||'';
+  document.getElementById('f_sitePhone').value  = r.sitePhone || '';
+  document.getElementById('f_pm').value         = r.pm        || '';
+  document.getElementById('f_desc').value       = r.desc      || '';
+  document.getElementById('f_labour').value     = r.labour    || 0;
+  document.getElementById('f_materials').value  = r.materials || 0;
+  initDate();
+  calcPricing();
+  toast('Form loaded from history — update details and generate a new WO');
+}
 
 function initDate() {
   const d = new Date();
@@ -768,7 +988,36 @@ function resetFields() {
 // ═══════════════════════════════════════
 //  GENERATE WORK ORDER
 // ═══════════════════════════════════════
+function validateForm() {
+  const required = [
+    { id: 'f_subName',  label: 'Subcontractor Name' },
+    { id: 'f_siteName', label: 'Site Name' },
+    { id: 'f_siteAddr', label: 'Site Address' },
+    { id: 'f_desc',     label: 'Description of Work' },
+  ];
+  let first = null;
+  required.forEach(f => {
+    const el = document.getElementById(f.id);
+    if (!el.value.trim()) {
+      el.style.borderColor = '#dc2626';
+      el.style.boxShadow   = '0 0 0 3px rgba(220,38,38,0.15)';
+      if (!first) first = el;
+    } else {
+      el.style.borderColor = '';
+      el.style.boxShadow   = '';
+    }
+  });
+  if (first) {
+    first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    first.focus();
+    toast('⚠ Please fill in the highlighted fields');
+    return false;
+  }
+  return true;
+}
+
 function generateWO() {
+  if (!validateForm()) return;
   const date    = document.getElementById('f_date').value;
   const pm      = document.getElementById('f_pm').value;
   const subName = document.getElementById('f_subName').value;
@@ -885,6 +1134,15 @@ function generateWO() {
     </div>
   `;
 
+  // Save autocomplete + history
+  saveAutoEntry();
+  saveHistoryEntry({
+    woNum: S.currentWO, date: fmtDate(date),
+    subName, subEmail: document.getElementById('f_subEmail').value.trim(),
+    subState, siteName, siteAddr, siteContact, sitePhone, pm, desc,
+    labour, materials: mats, total: fmt(total)
+  });
+
   document.getElementById('previewOverlay').classList.add('active');
   window.scrollTo(0, 0);
 }
@@ -915,6 +1173,26 @@ function newWO() {
   resetFields();
   toast(`Ready — Work Order #${S.currentWO}`);
 }
+function useAsTemplate() {
+  // Keep all form values, just increment the WO number and close preview
+  S.currentWO++;
+  persist();
+  updateBadge();
+  closePreview();
+  // Reset only pricing and date, keep subcontractor/site/PM
+  document.getElementById('f_labour').value    = '0';
+  document.getElementById('f_materials').value = '0';
+  document.getElementById('f_desc').value      = '';
+  document.getElementById('f_notes').value     = '';
+  document.getElementById('f_priority').value  = '';
+  document.getElementById('cb_report').checked = true;
+  document.getElementById('cb_recs').checked   = true;
+  document.getElementById('cb_photos').checked = true;
+  document.getElementById('cb_quote').checked  = false;
+  initDate();
+  calcPricing();
+  toast(`Template loaded — WO #${S.currentWO} ready. Site & subcontractor kept.`);
+}
 
 // ═══════════════════════════════════════
 //  UTILITIES
@@ -932,6 +1210,10 @@ function h(str) {
   return String(str)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function clearErr(el) {
+  el.style.borderColor = '';
+  el.style.boxShadow   = '';
 }
 function toast(msg) {
   const t = document.createElement('div');
@@ -999,13 +1281,16 @@ function copyEmailBody() {
   }
 }
 
-function openMailto() {
+function openOutlook() {
+  // 1. Download the PDF first
+  downloadPDF();
+  // 2. Build Outlook Web compose URL (works for Microsoft 365 / Outlook.com)
   const to      = document.getElementById('em_to').value;
   const subject = document.getElementById('em_subject').value;
   const body    = document.getElementById('emailBodyTA').value;
-  // mailto: has browser limits on body length, but works well for typical emails
-  const mailto  = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.location.href = mailto;
+  const url = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(url, '_blank');
+  toast('📎 PDF downloaded — attach it in Outlook before sending!');
 }
 
 // ═══════════════════════════════════════
