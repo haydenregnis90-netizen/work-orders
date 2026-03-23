@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work Order Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef1f6; color: #333; }
+
+/* ── HEADER ── */
+.app-header {
+  background: linear-gradient(135deg, #1a3a5c 0%, #1e4f8a 100%);
+  color: white; padding: 0 24px; display: flex;
+  justify-content: space-between; align-items: center;
+  height: 58px; box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  position: sticky; top: 0; z-index: 200;
+}
+.app-header h1 { font-size: 19px; font-weight: 700; letter-spacing: 0.3px; }
+.header-btns { display: flex; gap: 8px; }
+
+/* ── BUTTONS ── */
+.btn {
+  padding: 8px 16px; border: none; border-radius: 6px;
+  cursor: pointer; font-size: 13px; font-weight: 600;
+  transition: all 0.18s; white-space: nowrap;
+}
+.btn-primary   { background: #2563a8; color: white; }
+.btn-primary:hover { background: #1d4f8a; }
+.btn-secondary { background: #e8edf7; color: #1a3a5c; }
+.btn-secondary:hover { background: #d4dcee; }
+.btn-success   { background: #16a34a; color: white; }
+.btn-success:hover { background: #15803d; }
+.btn-outline   { background: transparent; color: white; border: 1.5px solid rgba(255,255,255,0.55); }
+.btn-outline:hover { background: rgba(255,255,255,0.15); }
+.btn-danger    { background: #dc2626; color: white; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-lg { padding: 11px 26px; font-size: 15px; border-radius: 8px; }
+
+/* ── SETTINGS OVERLAY ── */
+.settings-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55); z-index: 500;
+  justify-content: center; align-items: flex-start;
+  padding: 70px 16px 24px;
+}
+.settings-overlay.active { display: flex; }
+.settings-panel {
+  background: white; width: 620px; max-width: 100%;
+  max-height: 85vh; overflow-y: auto;
+  border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.35);
+}
+.settings-header {
+  padding: 18px 24px; border-bottom: 1px solid #e5e7eb;
+  display: flex; justify-content: space-between; align-items: center;
+  position: sticky; top: 0; background: white; z-index: 1;
+}
+.settings-header h2 { font-size: 17px; color: #1a3a5c; }
+.settings-body { padding: 24px; }
+.settings-section { margin-bottom: 26px; }
+.settings-section h3 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+  color: #6b7280; margin-bottom: 12px; padding-bottom: 6px;
+  border-bottom: 1px solid #f3f4f6; font-weight: 700;
+}
+.close-btn {
+  background: none; border: none; font-size: 20px; cursor: pointer;
+  color: #9ca3af; padding: 4px 8px; border-radius: 4px; line-height: 1;
+}
+.close-btn:hover { background: #f3f4f6; color: #374151; }
+
+/* ── FORM LAYOUT ── */
+.main-content { max-width: 860px; margin: 28px auto; padding: 0 16px 40px; }
+.form-card {
+  background: white; border-radius: 12px;
+  box-shadow: 0 2px 14px rgba(0,0,0,0.09); overflow: hidden;
+}
+.form-card-header {
+  background: #f4f7ff; border-bottom: 2px solid #e2e8f0;
+  padding: 18px 28px; display: flex;
+  justify-content: space-between; align-items: center;
+}
+.form-card-header h2 { font-size: 17px; color: #1a3a5c; }
+.form-card-header p { font-size: 12px; color: #6b7280; margin-top: 3px; }
+.wo-badge {
+  background: #1a3a5c; color: white;
+  padding: 6px 16px; border-radius: 20px;
+  font-size: 14px; font-weight: 700; letter-spacing: 0.5px;
+}
+.form-body { padding: 26px 28px; }
+.form-section {
+  margin-bottom: 26px; padding-bottom: 26px;
+  border-bottom: 1px solid #f0f2f6;
+}
+.form-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.section-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+  color: #6b7280; margin-bottom: 14px; font-weight: 700;
+}
+.form-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-group label { font-size: 12px; font-weight: 700; color: #374151; }
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 9px 11px; border: 1.5px solid #d1d5db;
+  border-radius: 6px; font-size: 13.5px; font-family: inherit;
+  color: #1f2937; transition: border-color 0.2s, box-shadow 0.2s; width: 100%;
+  background: white;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none; border-color: #2563a8;
+  box-shadow: 0 0 0 3px rgba(37,99,168,0.1);
+}
+.form-group textarea { resize: vertical; min-height: 72px; }
+input[readonly] { background: #f9fafb; cursor: not-allowed; }
+
+/* ── CHECKBOXES ── */
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.checkbox-label {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 500; color: #374151; cursor: pointer;
+  background: #f4f7ff; border: 1.5px solid #dbe4f5;
+  border-radius: 6px; padding: 7px 12px; transition: background 0.15s;
+}
+.checkbox-label:hover { background: #e8edf7; }
+.checkbox-label input[type=checkbox] { width: auto; accent-color: #2563a8; }
+
+/* ── PRICING ── */
+.pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.pricing-summary {
+  background: #f4f7ff; border: 1.5px solid #dbe4f5;
+  border-radius: 8px; padding: 14px 16px;
+}
+.pricing-line {
+  display: flex; justify-content: space-between;
+  padding: 5px 0; font-size: 13.5px; color: #374151;
+}
+.pricing-line.total {
+  font-size: 15px; font-weight: 800; color: #1a3a5c;
+  border-top: 2px solid #1a3a5c; padding-top: 10px; margin-top: 4px;
+}
+
+/* ── GENERATE BAR ── */
+.generate-bar {
+  padding: 20px 28px; background: #f4f7ff;
+  border-top: 2px solid #e2e8f0;
+  display: flex; justify-content: flex-end; gap: 10px;
+}
+
+/* ── PREVIEW OVERLAY ── */
+.preview-overlay {
+  display: none; position: fixed; inset: 0;
+  background: #6b7280; z-index: 1000; overflow-y: auto;
+}
+.preview-overlay.active { display: block; }
+.preview-toolbar {
+  position: sticky; top: 0; z-index: 10;
+  background: #374151; padding: 10px 16px;
+  display: flex; gap: 8px; justify-content: flex-end;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.wo-doc-wrap { padding: 20px 16px 40px; }
+
+/* ── WORK ORDER DOCUMENT ── */
+#wo-document {
+  width: 794px; min-height: 1123px;
+  margin: 0 auto; background: white;
+  padding: 28px 36px 36px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 9.5pt; color: #000;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+}
+.wo-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.wo-logo-block { display: flex; align-items: flex-start; gap: 14px; }
+.wo-logo img { max-height: 65px; max-width: 110px; object-fit: contain; }
+.wo-logo-placeholder {
+  width: 90px; height: 55px; border: 2px dashed #ccc;
+  display: flex; align-items: center; justify-content: center;
+  color: #bbb; font-size: 9px; text-align: center; border-radius: 4px;
+}
+.wo-co-name { font-weight: bold; font-size: 11.5pt; line-height: 1.4; }
+.wo-co-detail { font-size: 8.5pt; color: #333; line-height: 1.6; }
+.wo-offices { text-align: right; font-size: 8pt; color: #333; line-height: 1.55; }
+.wo-title { text-align: center; font-size: 15pt; font-weight: bold; margin: 14px 0 10px; letter-spacing: 0.5px; }
+.wo-sub { font-size: 9.5pt; line-height: 1.6; margin-bottom: 10px; }
+.wo-rule { border: none; border-top: 2px solid #1a1a1a; margin: 6px 0; }
+.wo-thin-rule { border: none; border-top: 1px solid #888; margin: 4px 0; }
+.wo-info { width: 100%; border-collapse: collapse; margin: 2px 0 2px; }
+.wo-info td { padding: 4.5px 6px; font-size: 9.5pt; vertical-align: top; }
+.wo-info .lbl { font-weight: bold; white-space: nowrap; width: 90px; }
+.wo-desc-head { font-weight: bold; font-size: 9.5pt; margin: 14px 0 6px; }
+.wo-callout { font-weight: bold; text-decoration: underline; font-size: 9.5pt; margin-bottom: 8px; }
+.wo-bullets { padding-left: 18px; line-height: 2; }
+.wo-bullets li { font-size: 9pt; }
+.wo-bullets li b { font-weight: bold; }
+.wo-terms-wrap { margin-top: 18px; border-top: 1px solid #999; padding-top: 10px; }
+.wo-terms-title { font-weight: bold; text-decoration: underline; font-size: 9pt; margin-bottom: 8px; }
+.wo-terms-item { font-size: 8pt; color: #222; line-height: 1.5; margin-bottom: 4px; }
+.wo-pricing-wrap { margin-top: auto; padding-top: 14px; }
+.wo-pr-row { display: flex; justify-content: space-between; padding: 3.5px 6px; font-size: 9.5pt; font-weight: bold; }
+.wo-pr-total { display: flex; justify-content: space-between; padding: 6px 6px 3.5px; font-size: 9.5pt; font-weight: bold; border-top: 1px solid #1a1a1a; margin-top: 2px; }
+
+/* ── TOAST ── */
+@keyframes toastIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: #16a34a; color: white;
+  padding: 11px 20px; border-radius: 8px;
+  font-size: 14px; font-weight: 600;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.2); z-index: 9999;
+  animation: toastIn 0.25s ease;
+}
+
+/* ── EMAIL MODAL ── */
+.email-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6); z-index: 2000;
+  justify-content: center; align-items: center;
+  padding: 20px;
+}
+.email-overlay.active { display: flex; }
+.email-modal {
+  background: white; width: 680px; max-width: 100%;
+  max-height: 90vh; overflow-y: auto;
+  border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+  display: flex; flex-direction: column;
+}
+.email-modal-header {
+  padding: 16px 22px; border-bottom: 1px solid #e5e7eb;
+  display: flex; justify-content: space-between; align-items: center;
+  background: #f4f7ff; border-radius: 12px 12px 0 0;
+  position: sticky; top: 0; z-index: 1;
+}
+.email-modal-header h3 { font-size: 16px; color: #1a3a5c; }
+.email-meta { padding: 14px 22px; border-bottom: 1px solid #f0f2f6; font-size: 13px; }
+.email-meta-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.email-meta-row:last-child { margin-bottom: 0; }
+.email-meta-label { font-weight: 700; color: #374151; min-width: 60px; }
+.email-meta-val {
+  flex: 1; background: #f9fafb; border: 1.5px solid #e5e7eb;
+  border-radius: 6px; padding: 6px 10px; font-size: 13px;
+  font-family: inherit; color: #1f2937;
+}
+.email-meta-val:focus { outline: none; border-color: #2563a8; }
+.email-body-wrap { padding: 16px 22px; flex: 1; }
+.email-body-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #6b7280; margin-bottom: 8px; }
+#emailBodyTA {
+  width: 100%; min-height: 260px; padding: 14px;
+  border: 1.5px solid #e5e7eb; border-radius: 8px;
+  font-size: 13.5px; font-family: 'Segoe UI', Arial, sans-serif;
+  line-height: 1.7; color: #1f2937; resize: vertical;
+  background: #fafbff;
+}
+#emailBodyTA:focus { outline: none; border-color: #2563a8; }
+.email-modal-footer {
+  padding: 14px 22px; border-top: 1px solid #e5e7eb;
+  display: flex; gap: 8px; justify-content: flex-end;
+  background: #f9fafb; border-radius: 0 0 12px 12px;
+  flex-wrap: wrap;
+}
+
+/* ── PRINT ── */
+@media print {
+  body * { visibility: hidden; }
+  #wo-document, #wo-document * { visibility: visible; }
+  #wo-document { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; padding: 0; }
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 620px) {
+  .form-grid, .pricing-grid { grid-template-columns: 1fr; }
+  .form-group.full { grid-column: 1; }
+  #wo-document { width: 100%; padding: 16px; font-size: 8pt; }
+}
+</style>
+</head>
+<body>
+
+<!-- ████ HEADER ████ -->
+<header class="app-header">
+  <h1>⚡ Work Order Generator</h1>
+  <div class="header-btns">
+    <button class="btn btn-outline" onclick="openSettings()">⚙ Settings</button>
+  </div>
+</header>
+
+<!-- ████ SETTINGS ████ -->
+<div class="settings-overlay" id="settingsOverlay" onclick="bgClickSettings(event)">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <h2>⚙ Company Settings</h2>
+      <button class="close-btn" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="settings-body">
+
+      <div class="settings-section">
+        <h3>Company Details</h3>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Company Name</label>
+            <input type="text" id="s_name" placeholder="e.g. Auscool Commissioning Services Pty Ltd">
+          </div>
+          <div class="form-group">
+            <label>ABN</label>
+            <input type="text" id="s_abn" placeholder="e.g. 42 615 781 416">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" id="s_phone" placeholder="e.g. 1300 230 255">
+          </div>
+          <div class="form-group">
+            <label>Website</label>
+            <input type="text" id="s_website" placeholder="e.g. www.yoursite.com.au">
+          </div>
+          <div class="form-group">
+            <label>Invoice Email</label>
+            <input type="email" id="s_email1" placeholder="accounts@yourcompany.com.au">
+          </div>
+          <div class="form-group">
+            <label>Service CC Email</label>
+            <input type="email" id="s_email2" placeholder="service@yourcompany.com.au">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Company Logo</h3>
+        <div class="form-group">
+          <label>Upload Logo Image</label>
+          <input type="file" id="s_logo" accept="image/*" onchange="handleLogo(event)">
+          <small style="color:#9ca3af; font-size:11px; margin-top:2px;">PNG with transparent background recommended</small>
+        </div>
+        <div id="logoPreview" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Office Locations</h3>
+        <small style="color:#9ca3af; font-size:11px; display:block; margin-bottom:8px;">One address per line — appears in top-right of the work order</small>
+        <div class="form-group">
+          <textarea id="s_offices" rows="5" placeholder="Melbourne - 113 Scanlon Drive, Epping VIC 3076&#10;Sydney - 25/5b Curtis Road, Mulgrave NSW 2756&#10;Brisbane - 2/31 Warehouse Circuit, Yatala QLD 4207&#10;Perth - 100 Mulgul Road, Malaga WA 6090"></textarea>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Work Order Numbering</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Starting WO Number</label>
+            <input type="number" id="s_startWO" placeholder="e.g. 13708" min="1">
+          </div>
+          <div class="form-group">
+            <label>Next WO Number (read-only)</label>
+            <input type="number" id="s_currentWO" readonly>
+          </div>
+        </div>
+        <div style="margin-top:10px;">
+          <button class="btn btn-danger" onclick="resetCounter()" style="font-size:12px; padding:6px 14px;">↺ Reset counter to starting number</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Email Signature</h3>
+        <small style="color:#9ca3af; font-size:11px; display:block; margin-bottom:8px;">Appears after "Regards," in the generated subcontractor email</small>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Signature Name / Title</label>
+            <input type="text" id="s_sigName" placeholder="e.g. Caitlin Burns | Service Coordinator">
+          </div>
+          <div class="form-group">
+            <label>Signature Phone</label>
+            <input type="text" id="s_sigPhone" placeholder="e.g. 1300 230 255">
+          </div>
+          <div class="form-group">
+            <label>Signature Email</label>
+            <input type="email" id="s_sigEmail" placeholder="e.g. caitlin@yourcompany.com.au">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Payment Terms &amp; Conditions</h3>
+        <small style="color:#9ca3af; font-size:11px; display:block; margin-bottom:8px;">Appears at the bottom of every work order — edit to suit your business</small>
+        <div class="form-group">
+          <textarea id="s_terms" rows="13"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end; padding-top:16px; border-top:1px solid #e5e7eb; margin-top:4px;">
+        <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+        <button class="btn btn-success" onclick="saveSettings()">✓ Save Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ████ MAIN FORM ████ -->
+<main class="main-content">
+  <div id="setupBanner" style="background:#fef3c7; border:1.5px solid #fbbf24; border-radius:8px; padding:12px 18px; margin-bottom:16px; font-size:13px; color:#92400e; display:flex; justify-content:space-between; align-items:center;">
+    <span>👋 <strong>First time?</strong> Open <strong>⚙ Settings</strong> to enter your company name, logo, and ABN before generating work orders.</span>
+    <button onclick="this.parentElement.remove()" style="background:none; border:none; cursor:pointer; font-size:16px; color:#92400e; padding:0 4px;">✕</button>
+  </div>
+
+  <div class="form-card">
+    <div class="form-card-header">
+      <div>
+        <h2>New Work Order</h2>
+        <p>Fill in the details below, then click Generate</p>
+      </div>
+      <div class="wo-badge" id="woBadge">WO #—</div>
+    </div>
+
+    <div class="form-body">
+
+      <!-- Work Order Details -->
+      <div class="form-section">
+        <div class="section-title">Work Order Details</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="f_date">
+          </div>
+          <div class="form-group">
+            <label>Project Manager (P.M.)</label>
+            <input type="text" id="f_pm" placeholder="e.g. Caitlin Burns">
+          </div>
+        </div>
+      </div>
+
+      <!-- Subcontractor -->
+      <div class="form-section">
+        <div class="section-title">Subcontractor</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Company Name</label>
+            <input type="text" id="f_subName" placeholder="e.g. Summit Air &amp; Refrigeration">
+          </div>
+          <div class="form-group">
+            <label>State</label>
+            <select id="f_subState">
+              <option value="">— Select State —</option>
+              <option>NSW</option><option>VIC</option><option>QLD</option>
+              <option>WA</option><option>SA</option><option>TAS</option>
+              <option>NT</option><option>ACT</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Subcontractor Email <span style="font-weight:400;color:#9ca3af;">(used for generated email)</span></label>
+            <input type="email" id="f_subEmail" placeholder="e.g. admin@summitair.com.au">
+          </div>
+        </div>
+      </div>
+
+      <!-- Site Details -->
+      <div class="form-section">
+        <div class="section-title">Site Details</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Site Name</label>
+            <input type="text" id="f_siteName" placeholder="e.g. El Jannah Tuggerah">
+          </div>
+          <div class="form-group">
+            <label>Site Contact</label>
+            <input type="text" id="f_siteContact" placeholder="Contact person name">
+          </div>
+          <div class="form-group full">
+            <label>Site Address</label>
+            <input type="text" id="f_siteAddr" placeholder="e.g. Pacific Centre Tuggerah, 144-148 Pacific Hwy, Tuggerah NSW 2259">
+          </div>
+          <div class="form-group">
+            <label>Site Phone</label>
+            <input type="text" id="f_sitePhone" placeholder="e.g. (02) 4399 0000">
+          </div>
+        </div>
+      </div>
+
+      <!-- Job Description -->
+      <div class="form-section">
+        <div class="section-title">Job Description</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Call Type</label>
+            <select id="f_callType" onchange="toggleCustom()">
+              <option value="Callout to site for after hours attendance">Callout – After Hours</option>
+              <option value="Callout to site for business hours attendance">Callout – Business Hours</option>
+              <option value="Scheduled Preventative Maintenance">Scheduled Preventative Maintenance</option>
+              <option value="Warranty Repair">Warranty Repair</option>
+              <option value="Emergency Callout">Emergency Callout</option>
+              <option value="Quote Request">Quote Request</option>
+              <option value="Custom">Custom…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="f_priority">
+              <option value="">—</option>
+              <option>Normal</option>
+              <option>Urgent</option>
+              <option>Emergency</option>
+            </select>
+          </div>
+          <div class="form-group full" id="customCallGroup" style="display:none;">
+            <label>Custom Call Type Description</label>
+            <input type="text" id="f_customCall" placeholder="Describe the type of call-out…">
+          </div>
+          <div class="form-group full">
+            <label>Description of Work</label>
+            <textarea id="f_desc" placeholder="e.g. Investigate AC not working — unit tripping on high pressure, all zones affected."></textarea>
+          </div>
+          <div class="form-group full">
+            <label>Additional Notes <span style="font-weight:400; color:#9ca3af;">(optional)</span></label>
+            <textarea id="f_notes" rows="2" placeholder="Any extra instructions or requirements for this job…"></textarea>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <label style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#6b7280; display:block; margin-bottom:8px;">Standard Requirements</label>
+          <div class="checkbox-group">
+            <label class="checkbox-label"><input type="checkbox" id="cb_report" checked> Detailed report of findings</label>
+            <label class="checkbox-label"><input type="checkbox" id="cb_recs" checked> Additional recommendations</label>
+            <label class="checkbox-label"><input type="checkbox" id="cb_photos" checked> Before/after photos</label>
+            <label class="checkbox-label"><input type="checkbox" id="cb_quote"> Quote for additional works</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing -->
+      <div class="form-section">
+        <div class="section-title">Pricing</div>
+        <div class="pricing-grid">
+          <div class="form-group">
+            <label>Labour (excl. GST) — $</label>
+            <input type="number" id="f_labour" value="0" min="0" step="0.01" oninput="calcPricing()">
+          </div>
+          <div class="form-group">
+            <label>Materials (excl. GST) — $</label>
+            <input type="number" id="f_materials" value="0" min="0" step="0.01" oninput="calcPricing()">
+          </div>
+        </div>
+        <div class="pricing-summary">
+          <div class="pricing-line"><span>Sub-Total ex GST</span><span id="p_sub">$0.00</span></div>
+          <div class="pricing-line"><span>GST (10%)</span><span id="p_gst">$0.00</span></div>
+          <div class="pricing-line total"><span>Total (inc. GST)</span><span id="p_total">$0.00</span></div>
+        </div>
+      </div>
+
+    </div><!-- /form-body -->
+
+    <div class="generate-bar">
+      <button class="btn btn-secondary btn-lg" onclick="clearForm()">↺ Clear</button>
+      <button class="btn btn-success btn-lg" onclick="generateWO()">📄 Generate Work Order</button>
+    </div>
+  </div>
+</main>
+
+<!-- ████ PREVIEW OVERLAY ████ -->
+<div class="preview-overlay" id="previewOverlay">
+  <div class="preview-toolbar">
+    <button class="btn btn-secondary" onclick="closePreview()">← Back to Edit</button>
+    <button class="btn btn-primary" onclick="downloadPDF()">⬇ Download PDF</button>
+    <button class="btn" style="background:#555;color:white;" onclick="window.print()">🖨 Print</button>
+    <button class="btn" style="background:#7c3aed;color:white;" onclick="openEmailModal()">✉ Generate Email</button>
+    <button class="btn btn-success" onclick="newWO()">+ New Work Order</button>
+  </div>
+  <div class="wo-doc-wrap">
+    <div id="wo-document"><!-- generated --></div>
+  </div>
+</div>
+
+<!-- ████ EMAIL MODAL ████ -->
+<div class="email-overlay" id="emailOverlay" onclick="bgClickEmail(event)">
+  <div class="email-modal">
+    <div class="email-modal-header">
+      <h3>✉ Generated Email</h3>
+      <button class="close-btn" onclick="closeEmailModal()">✕</button>
+    </div>
+    <div class="email-meta">
+      <div class="email-meta-row">
+        <span class="email-meta-label">To:</span>
+        <input type="email" class="email-meta-val" id="em_to" placeholder="subcontractor@email.com">
+      </div>
+      <div class="email-meta-row">
+        <span class="email-meta-label">Subject:</span>
+        <input type="text" class="email-meta-val" id="em_subject">
+      </div>
+    </div>
+    <div class="email-body-wrap">
+      <div class="email-body-label">Email Body — edit as needed before sending</div>
+      <textarea id="emailBodyTA"></textarea>
+    </div>
+    <div class="email-modal-footer">
+      <button class="btn btn-secondary" onclick="closeEmailModal()">Close</button>
+      <button class="btn" style="background:#374151;color:white;" onclick="copyEmailBody()">📋 Copy Body</button>
+      <button class="btn btn-primary" onclick="openMailto()">📨 Open in Email Client</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════
+let S = {
+  name: '', abn: '', phone: '', website: '',
+  email1: '', email2: '', offices: '',
+  logo: '', startWO: 1001, currentWO: 1001,
+  terms: '',
+  sigName: '', sigPhone: '', sigEmail: ''
+};
+
+// ═══════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
+  initDate();
+  calcPricing();
+  updateBadge();
+  // if company name already set, hide banner
+  if (S.name) {
+    const b = document.getElementById('setupBanner');
+    if (b) b.remove();
+  }
+});
+
+function initDate() {
+  const d = new Date();
+  document.getElementById('f_date').value =
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ═══════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════
+function openSettings() {
+  document.getElementById('s_name').value     = S.name;
+  document.getElementById('s_abn').value      = S.abn;
+  document.getElementById('s_phone').value    = S.phone;
+  document.getElementById('s_website').value  = S.website;
+  document.getElementById('s_email1').value   = S.email1;
+  document.getElementById('s_email2').value   = S.email2;
+  document.getElementById('s_offices').value  = S.offices;
+  document.getElementById('s_startWO').value  = S.startWO;
+  document.getElementById('s_currentWO').value = S.currentWO;
+  document.getElementById('s_terms').value    = S.terms || defaultTerms('Your Company');
+  document.getElementById('s_sigName').value  = S.sigName;
+  document.getElementById('s_sigPhone').value = S.sigPhone;
+  document.getElementById('s_sigEmail').value = S.sigEmail;
+  if (S.logo) {
+    document.getElementById('logoPreview').innerHTML =
+      `<img src="${S.logo}" style="max-height:55px;border:1px solid #e5e7eb;border-radius:4px;padding:4px;">
+       <button onclick="clearLogo()" style="margin-left:8px;font-size:12px;color:#dc2626;background:none;border:none;cursor:pointer;">Remove</button>`;
+  }
+  document.getElementById('settingsOverlay').classList.add('active');
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('active');
+}
+function bgClickSettings(e) {
+  if (e.target === document.getElementById('settingsOverlay')) closeSettings();
+}
+function saveSettings() {
+  S.name    = document.getElementById('s_name').value.trim();
+  S.abn     = document.getElementById('s_abn').value.trim();
+  S.phone   = document.getElementById('s_phone').value.trim();
+  S.website = document.getElementById('s_website').value.trim();
+  S.email1  = document.getElementById('s_email1').value.trim();
+  S.email2  = document.getElementById('s_email2').value.trim();
+  S.offices = document.getElementById('s_offices').value.trim();
+  S.terms    = document.getElementById('s_terms').value;
+  S.sigName  = document.getElementById('s_sigName').value.trim();
+  S.sigPhone = document.getElementById('s_sigPhone').value.trim();
+  S.sigEmail = document.getElementById('s_sigEmail').value.trim();
+  const ns  = parseInt(document.getElementById('s_startWO').value);
+  if (!isNaN(ns) && ns > 0 && ns !== S.startWO) {
+    S.startWO = ns;
+    S.currentWO = ns;
+  }
+  persist();
+  updateBadge();
+  closeSettings();
+  const b = document.getElementById('setupBanner');
+  if (b && S.name) b.remove();
+  toast('Settings saved ✓');
+}
+function resetCounter() {
+  if (!confirm('Reset work order counter to starting number?')) return;
+  S.currentWO = S.startWO;
+  document.getElementById('s_currentWO').value = S.currentWO;
+  persist();
+  updateBadge();
+}
+function handleLogo(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    S.logo = ev.target.result;
+    document.getElementById('logoPreview').innerHTML =
+      `<img src="${S.logo}" style="max-height:55px;border:1px solid #e5e7eb;border-radius:4px;padding:4px;">
+       <button onclick="clearLogo()" style="margin-left:8px;font-size:12px;color:#dc2626;background:none;border:none;cursor:pointer;">Remove</button>`;
+  };
+  r.readAsDataURL(f);
+}
+function clearLogo() {
+  S.logo = '';
+  document.getElementById('logoPreview').innerHTML = '';
+  document.getElementById('s_logo').value = '';
+}
+function persist() {
+  try { localStorage.setItem('hvac_wo_v1', JSON.stringify(S)); } catch(e) {}
+}
+function loadSettings() {
+  try {
+    const d = localStorage.getItem('hvac_wo_v1');
+    if (d) S = { ...S, ...JSON.parse(d) };
+  } catch(e) {}
+  if (!S.terms) S.terms = defaultTerms(S.name || 'Your Company');
+  updateBadge();
+}
+function updateBadge() {
+  document.getElementById('woBadge').textContent = `WO #${S.currentWO}`;
+}
+
+// ═══════════════════════════════════════
+//  FORM HELPERS
+// ═══════════════════════════════════════
+function toggleCustom() {
+  document.getElementById('customCallGroup').style.display =
+    document.getElementById('f_callType').value === 'Custom' ? 'block' : 'none';
+}
+function calcPricing() {
+  const l = parseFloat(document.getElementById('f_labour').value) || 0;
+  const m = parseFloat(document.getElementById('f_materials').value) || 0;
+  const sub = l + m, gst = sub * 0.1, tot = sub + gst;
+  document.getElementById('p_sub').textContent   = fmt(sub);
+  document.getElementById('p_gst').textContent   = fmt(gst);
+  document.getElementById('p_total').textContent = fmt(tot);
+}
+function clearForm() {
+  if (!confirm('Clear all form fields?')) return;
+  resetFields();
+}
+function resetFields() {
+  ['f_pm','f_subName','f_subEmail','f_siteContact','f_siteName','f_siteAddr','f_sitePhone',
+   'f_desc','f_notes','f_customCall'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('f_subState').value  = '';
+  document.getElementById('f_priority').value  = '';
+  document.getElementById('f_callType').value  = 'Callout to site for after hours attendance';
+  document.getElementById('f_labour').value    = '0';
+  document.getElementById('f_materials').value = '0';
+  document.getElementById('cb_report').checked = true;
+  document.getElementById('cb_recs').checked   = true;
+  document.getElementById('cb_photos').checked = true;
+  document.getElementById('cb_quote').checked  = false;
+  document.getElementById('customCallGroup').style.display = 'none';
+  initDate();
+  calcPricing();
+}
+
+// ═══════════════════════════════════════
+//  GENERATE WORK ORDER
+// ═══════════════════════════════════════
+function generateWO() {
+  const date    = document.getElementById('f_date').value;
+  const pm      = document.getElementById('f_pm').value;
+  const subName = document.getElementById('f_subName').value;
+  const subState= document.getElementById('f_subState').value;
+  const siteName= document.getElementById('f_siteName').value;
+  const siteContact = document.getElementById('f_siteContact').value;
+  const siteAddr    = document.getElementById('f_siteAddr').value;
+  const sitePhone   = document.getElementById('f_sitePhone').value;
+  const callTypeSel = document.getElementById('f_callType').value;
+  const callType    = callTypeSel === 'Custom'
+    ? document.getElementById('f_customCall').value : callTypeSel;
+  const priority = document.getElementById('f_priority').value;
+  const desc     = document.getElementById('f_desc').value;
+  const notes    = document.getElementById('f_notes').value;
+  const labour   = parseFloat(document.getElementById('f_labour').value) || 0;
+  const mats     = parseFloat(document.getElementById('f_materials').value) || 0;
+  const sub      = labour + mats;
+  const gst      = sub * 0.1;
+  const total    = sub + gst;
+
+  // Logo
+  const logoHTML = S.logo
+    ? `<div class="wo-logo"><img src="${S.logo}" alt="logo"></div>`
+    : `<div class="wo-logo"><div class="wo-logo-placeholder">Your<br>Logo</div></div>`;
+
+  // Company info lines
+  const coLines = [S.phone ? `Tel. ${h(S.phone)}` : '', S.website ? h(S.website) : '', S.abn ? `ABN ${h(S.abn)}` : ''].filter(Boolean).join('<br>');
+
+  // Offices
+  const officeLines = S.offices
+    ? S.offices.split('\n').filter(l=>l.trim()).map(l=>`<div>${h(l.trim())}</div>`).join('')
+    : '<div style="color:#bbb;font-style:italic;">[Add office addresses in Settings]</div>';
+
+  // Bullet items
+  let bullets = `
+    <li>Date: ${fmtDate(date)}</li>
+    <li>Site Contact: ${h(siteContact)}</li>
+    <li><b>Description:</b> ${h(desc)}</li>
+    <li><b>Priority:</b> ${h(priority)}</li>
+  `;
+  if (document.getElementById('cb_report').checked) bullets += `<li>Provide detailed report of findings</li>`;
+  if (document.getElementById('cb_recs').checked)   bullets += `<li>Provide additional recommendations as required</li>`;
+  if (document.getElementById('cb_photos').checked) bullets += `<li>Provide before/after photos</li>`;
+  if (document.getElementById('cb_quote').checked)  bullets += `<li>Provide quote for any additional works required</li>`;
+  if (notes) bullets += `<li>${h(notes)}</li>`;
+
+  // Terms
+  const termsText = S.terms || defaultTerms(S.name || 'Your Company');
+  const termsHTML = termsText.split('\n').filter(l=>l.trim())
+    .map(l=>`<div class="wo-terms-item">${h(l)}</div>`).join('');
+
+  // Render
+  document.getElementById('wo-document').innerHTML = `
+    <div class="wo-top">
+      <div class="wo-logo-block">
+        ${logoHTML}
+        <div>
+          <div class="wo-co-name">${h(S.name) || '<em style="color:#c00;">Company Name</em>'}</div>
+          <div class="wo-co-detail">${coLines || '<em style="color:#c00;">Set details in Settings</em>'}</div>
+        </div>
+      </div>
+      <div class="wo-offices">${officeLines}</div>
+    </div>
+
+    <div class="wo-title">WORK ORDER NO. ${S.currentWO}</div>
+
+    <div class="wo-sub">
+      ${h(subName) || '<em style="color:#bbb;">Subcontractor Name</em>'}<br>
+      ${h(subState)}
+    </div>
+
+    <hr class="wo-rule">
+    <table class="wo-info">
+      <tr>
+        <td class="lbl">Site Name</td>
+        <td>${h(siteName)}</td>
+        <td class="lbl" style="padding-left:28px;">Site Contact</td>
+        <td>${h(siteContact)}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Site Address</td>
+        <td>${h(siteAddr)}</td>
+        <td class="lbl" style="padding-left:28px;">Site Phone</td>
+        <td>${h(sitePhone)}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Date</td><td>${fmtDate(date)}</td>
+        <td></td><td></td>
+      </tr>
+      <tr>
+        <td class="lbl">P.M.</td><td>${h(pm)}</td>
+        <td></td><td></td>
+      </tr>
+    </table>
+    <hr class="wo-rule">
+
+    <div class="wo-desc-head">Description</div>
+    <div class="wo-callout">${h(callType)}</div>
+    <ul class="wo-bullets">${bullets}</ul>
+
+    <div class="wo-terms-wrap">
+      <div class="wo-terms-title">${h(S.name || 'Company')} Payment Terms &amp; Conditions</div>
+      ${termsHTML}
+    </div>
+
+    <div class="wo-pricing-wrap">
+      <hr class="wo-rule">
+      <div class="wo-pr-row"><span>Labour</span><span>${fmt(labour)}</span></div>
+      <div class="wo-pr-row"><span>Materials</span><span>${fmt(mats)}</span></div>
+      <div class="wo-pr-row"><span>Sub-Total ex GST</span><span>${fmt(sub)}</span></div>
+      <div class="wo-pr-row"><span>GST</span><span>${fmt(gst)}</span></div>
+      <div class="wo-pr-total"><span>Total</span><span>${fmt(total)}</span></div>
+      <hr class="wo-thin-rule">
+    </div>
+  `;
+
+  document.getElementById('previewOverlay').classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ═══════════════════════════════════════
+//  PDF / PRINT / NAV
+// ═══════════════════════════════════════
+function downloadPDF() {
+  const el = document.getElementById('wo-document');
+  const dateStr = fmtDate(document.getElementById('f_date').value).replace(/\//g,'-');
+  const filename = `WorkOrder_${S.currentWO}_${dateStr}.pdf`;
+  html2pdf().set({
+    margin: 0,
+    filename: filename,
+    image: { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(el).save();
+}
+function closePreview() {
+  document.getElementById('previewOverlay').classList.remove('active');
+}
+function newWO() {
+  S.currentWO++;
+  persist();
+  updateBadge();
+  closePreview();
+  resetFields();
+  toast(`Ready — Work Order #${S.currentWO}`);
+}
+
+// ═══════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════
+function fmt(n) {
+  return `$${(parseFloat(n)||0).toFixed(2)}`;
+}
+function fmtDate(s) {
+  if (!s) return '';
+  const [y,m,d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+function h(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2600);
+}
+
+// ═══════════════════════════════════════
+//  EMAIL MODAL
+// ═══════════════════════════════════════
+function openEmailModal() {
+  const subName  = document.getElementById('f_subName').value || 'Team';
+  const subEmail = document.getElementById('f_subEmail').value || '';
+  const siteName = document.getElementById('f_siteName').value || 'site';
+  const pm       = document.getElementById('f_pm').value || '';
+  const coName   = S.name || 'Our Company';
+
+  // Build signature block
+  const sigLines = [
+    S.sigName  || pm || '',
+    coName,
+    S.sigPhone || S.phone || '',
+    S.sigEmail || ''
+  ].filter(Boolean).join('\n');
+
+  const body =
+`Hi ${subName},
+
+Please find attached work order for site attendance.
+
+Please proceed with this work order request and provide an ETA for arrival once scheduled.
+
+Please note: Refer to attached work order for attendance information and ${coName} Terms and conditions.
+
+In the event you require any additional information or to discuss the attached work order value, contact the undersigned.
+
+Regards,
+${sigLines}`;
+
+  document.getElementById('em_to').value      = subEmail;
+  document.getElementById('em_subject').value = `Work Order #${S.currentWO} – ${siteName}`;
+  document.getElementById('emailBodyTA').value = body;
+
+  document.getElementById('emailOverlay').classList.add('active');
+}
+
+function closeEmailModal() {
+  document.getElementById('emailOverlay').classList.remove('active');
+}
+
+function bgClickEmail(e) {
+  if (e.target === document.getElementById('emailOverlay')) closeEmailModal();
+}
+
+function copyEmailBody() {
+  const ta = document.getElementById('emailBodyTA');
+  ta.select();
+  try {
+    navigator.clipboard.writeText(ta.value).then(() => toast('Email body copied ✓'));
+  } catch(e) {
+    document.execCommand('copy');
+    toast('Email body copied ✓');
+  }
+}
+
+function openMailto() {
+  const to      = document.getElementById('em_to').value;
+  const subject = document.getElementById('em_subject').value;
+  const body    = document.getElementById('emailBodyTA').value;
+  // mailto: has browser limits on body length, but works well for typical emails
+  const mailto  = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+}
+
+// ═══════════════════════════════════════
+//  DEFAULT TERMS
+// ═══════════════════════════════════════
+function defaultTerms(co) {
+  return `1. Any variation in the Work Order amount by the recipient will not be paid without prior written consent or approval from ${co}.
+2. For ${co} to consider the Work Order "completed", the Contractor must provide evidence of work/s carried out in the form of photos, a job report and an invoice which shows the relevant Work Order number. Job report and Quotes to be submitted within 24 hrs of job attendance. Until this work order is completed, an invoice will not be paid.
+3. All contractor invoice payment terms of ${co} are 30 days EOM.
+4. By attending site for ${co}, the business on the Work Order is accepting the terms and conditions of this work order.
+5. ${co} endorses safe working practices only. In the event a contractor, or its employees is found not to be working to the relevant Australian OHS legislation whilst working on behalf of ${co}, this will result in immediate cancellation of this Work Order and payment terms.
+6. Any Workplace accident, injury or near miss must be reported to management immediately, as set out in Australian OHS state and territory guidelines.
+7. Any unlawful or discriminatory behaviour towards property, equipment, or persons onsite related to ${co}, its clients, Contractors or Staff will result in this WO and all future WOs immediately cancelled, without any compensation for the cancellation of these associated works and services.
+8. Technicians / Companies attending the work/s on this work order are doing so as a representative for ${co}.
+9. Any work or workplace disputes are to be brought to the attention of ${co} Management immediately.`;
+}
+</script>
+</body>
+</html>
